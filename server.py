@@ -21,6 +21,7 @@ def main():
     # Start background services immediately so they can respond to announcements
     common.create_thread(discovery.handle_discovery_messages)
     common.create_thread(heartbeat.monitor_server_health)
+    common.create_thread(election.handle_election_messages)
     
     # Start chat server in background
     common.create_thread(chat_handler.start_chat_server)
@@ -55,10 +56,19 @@ def main():
     time.sleep(1.0)
     
     # Start leader election only if no leader exists
+    print(f'[SERVER] === CHECKING LEADER STATUS ===')
+    print(f'[SERVER] Current leader: {common.current_leader}')
+    print(f'[SERVER] Active servers: {common.active_servers}')
+    print(f'[SERVER] Election in progress: {common.election_in_progress}')
+    
     if common.current_leader is None:
+        print(f'[SERVER] No leader exists - starting election')
         election.initiate_leader_election()
+        print(f'[SERVER] Election completed - Final leader: {common.current_leader}')
     else:
         print(f'[SERVER] Leader already exists: {common.current_leader}')
+    
+    print(f'[SERVER] === LEADER STATUS CHECK COMPLETE ===\n')
     
     # Main server loop
     while True:
