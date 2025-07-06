@@ -13,7 +13,7 @@ def display_network_status():
 
 def main():
     """Main server application"""
-    print(f'[SERVER] Starting Distributed Chat Server v0.0.2 on {common.my_ip}')
+    print(f'[SERVER] Starting Distributed Chat Server v0.0.3 on {common.my_ip}')
     
     # Initialize discovery service
     discovery.initialize_discovery_receiver()

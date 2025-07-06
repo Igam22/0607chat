@@ -98,7 +98,10 @@ def handle_bully_election_messages():
                 sender_ip = message['sender']
                 msg_type = message['type']
                 
-                print(f'[BULLY] Received {msg_type} message from {sender_ip}')
+                print(f'[BULLY] === RECEIVED {msg_type} MESSAGE ===')
+                print(f'[BULLY] From: {sender_ip}')
+                print(f'[BULLY] My IP: {common.my_ip}')
+                print(f'[BULLY] Current leader: {common.current_leader}')
                 
                 if msg_type == MessageType.ELECTION:
                     handle_election_message(sender_ip)
@@ -106,6 +109,8 @@ def handle_bully_election_messages():
                     handle_ok_message(sender_ip)
                 elif msg_type == MessageType.COORDINATOR:
                     handle_coordinator_message(sender_ip)
+                else:
+                    print(f'[BULLY] Unknown message type: {msg_type}')
                     
         except socket.timeout:
             continue
@@ -173,6 +178,16 @@ def initiate_bully_election():
     higher_servers = get_higher_servers()
     print(f'[BULLY] Higher priority servers: {higher_servers}')
     
+    # Debug: Show all server IDs for comparison
+    print(f'[BULLY] Server priority comparison:')
+    my_id = get_server_id(common.my_ip)
+    print(f'[BULLY]   My ID: {common.my_ip} = {my_id}')
+    for server in common.active_servers:
+        if server != common.my_ip:
+            server_id = get_server_id(server)
+            comparison = "HIGHER" if server_id > my_id else "LOWER"
+            print(f'[BULLY]   {server} = {server_id} ({comparison})')
+    
     if not higher_servers:
         # No higher servers, I am the coordinator
         print(f'[BULLY] No higher priority servers found - declaring myself leader')
@@ -180,12 +195,23 @@ def initiate_bully_election():
         return
     
     # Send ELECTION messages to all higher servers
-    print(f'[BULLY] Sending ELECTION messages to higher priority servers')
+    print(f'[BULLY] Sending ELECTION messages to higher priority servers: {higher_servers}')
+    sent_count = 0
     for server_ip in higher_servers:
-        send_election_message(server_ip, MessageType.ELECTION)
+        if send_election_message(server_ip, MessageType.ELECTION):
+            sent_count += 1
+        else:
+            print(f'[BULLY] Failed to send ELECTION message to {server_ip}')
+    
+    print(f'[BULLY] Successfully sent ELECTION messages to {sent_count}/{len(higher_servers)} servers')
+    
+    if sent_count == 0:
+        print(f'[BULLY] Could not contact any higher priority servers - declaring myself leader')
+        declare_coordinator()
+        return
     
     # Wait for OK responses
-    print(f'[BULLY] Waiting for OK responses...')
+    print(f'[BULLY] Waiting for OK responses (5s timeout)...')
     timeout = 5.0  # 5 second timeout
     start_time = time.time()
     
@@ -201,7 +227,8 @@ def initiate_bully_election():
                 return
     
     # No OK responses received, I am the coordinator
-    print(f'[BULLY] No OK responses received - declaring myself leader')
+    print(f'[BULLY] Timeout reached - no OK responses received after 5 seconds')
+    print(f'[BULLY] Declaring myself leader since higher priority servers did not respond')
     declare_coordinator()
 
 def declare_coordinator():
@@ -226,7 +253,12 @@ def declare_coordinator():
     print(f'[BULLY] === COORDINATOR DECLARATION COMPLETE ===\n')
 
 def trigger_election_if_needed():
-    """Trigger election if no leader exists or leader is unreachable"""
+    """Trigger election if no leader exists or if I have higher priority than current leader"""
+    print(f'[BULLY] === CHECKING IF ELECTION NEEDED ===')
+    print(f'[BULLY] My IP: {common.my_ip}')
+    print(f'[BULLY] Current leader: {common.current_leader}')
+    print(f'[BULLY] Active servers: {common.active_servers}')
+    
     if common.current_leader is None:
         print(f'[BULLY] No leader exists - triggering election')
         initiate_bully_election()
@@ -234,6 +266,22 @@ def trigger_election_if_needed():
         print(f'[BULLY] Current leader {common.current_leader} not in active servers - triggering election')
         common.current_leader = None
         initiate_bully_election()
+    else:
+        # Check if I have higher priority than current leader
+        my_id = get_server_id(common.my_ip)
+        leader_id = get_server_id(common.current_leader)
+        
+        print(f'[BULLY] Comparing priorities:')
+        print(f'[BULLY]   My priority: {common.my_ip} = {my_id}')
+        print(f'[BULLY]   Leader priority: {common.current_leader} = {leader_id}')
+        
+        if my_id > leader_id:
+            print(f'[BULLY] I have higher priority than current leader - challenging leadership!')
+            initiate_bully_election()
+        else:
+            print(f'[BULLY] Current leader has higher or equal priority - no election needed')
+    
+    print(f'[BULLY] === ELECTION CHECK COMPLETE ===\n')
 
 def get_election_status():
     """Get current election status for debugging"""

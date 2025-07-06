@@ -14,6 +14,12 @@ def monitor_server_health():
         print(f'[HEARTBEAT] Active servers: {common.active_servers}')
         print(f'[HEARTBEAT] Election in progress: {common.election_in_progress}')
         
+        # Show if I think I'm the leader
+        if common.current_leader == common.my_ip:
+            print(f'[HEARTBEAT] *** I AM THE LEADER ***')
+        else:
+            print(f'[HEARTBEAT] I am NOT the leader')
+        
         # Create heartbeat socket
         heartbeat_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
         heartbeat_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)

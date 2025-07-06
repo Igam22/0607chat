@@ -88,6 +88,7 @@ def handle_discovery_messages():
                 
                 elif message.leader_ip and common.current_leader != common.my_ip:
                     # Update from existing leader
+                    old_leader = common.current_leader
                     common.active_servers = message.server_list
                     common.connected_clients = message.client_list
                     common.current_leader = message.leader_ip
@@ -96,6 +97,10 @@ def handle_discovery_messages():
                     common.network_topology_changed = True
                     common.new_server_joined = True
                     print(f'[DISCOVERY] Updated leader information: {message.leader_ip}')
+                    
+                    # Check if I should challenge this leader (I have higher priority)
+                    print(f'[DISCOVERY] Learned about leader - checking if I should challenge')
+                    common.create_thread(bullyelection.trigger_election_if_needed)
                 
                 elif common.current_leader == common.my_ip:
                     # We are the leader, add new server and update network
