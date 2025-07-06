@@ -21,17 +21,37 @@ def main():
     # Start chat server in background
     common.create_thread(chat_handler.start_chat_server)
     
-    # Announce server presence
-    server_discovered = discovery.announce_server_presence()
-    
-    # Add self to server list
+    # Add self to server list first
     if common.my_ip not in common.active_servers:
         common.active_servers.append(common.my_ip)
     
+    # Announce server presence and wait for existing servers
+    print(f'[SERVER] Announcing presence and waiting for existing servers...')
+    server_discovered = discovery.announce_server_presence()
+    
+    # Wait for discovery process to complete and collect server responses
+    discovery_timeout = 3.0  # Wait up to 3 seconds for other servers
+    start_time = time.time()
+    
+    while (time.time() - start_time) < discovery_timeout:
+        time.sleep(0.1)
+        # Check if we received updates from other servers
+        if common.network_topology_changed:
+            print(f'[SERVER] Network topology updated during discovery')
+            common.network_topology_changed = False
+            break
+    
     display_network_status()
     
-    # Start leader election
-    election.initiate_leader_election()
+    # Additional delay before election to ensure all servers are ready
+    print(f'[SERVER] Waiting for network stabilization before election...')
+    time.sleep(1.0)
+    
+    # Start leader election only if no leader exists
+    if common.current_leader is None:
+        election.initiate_leader_election()
+    else:
+        print(f'[SERVER] Leader already exists: {common.current_leader}')
     
     # Start background services
     common.create_thread(discovery.handle_discovery_messages)

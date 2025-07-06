@@ -73,10 +73,12 @@ def handle_discovery_messages():
             if message.msg_type == common.MessageType.SERVER_DISCOVERY.value:
                 print(f'[DISCOVERY] Server {sender_addr} joining network: {common.DISCOVERY_ADDRESS}')
                 
-                if not message.server_list:
-                    # First server in network
+                # Check if this is the first server in our network (not sender's)
+                if len(common.active_servers) <= 1:
+                    # We are alone or just have ourselves, add the new server
                     if sender_addr[0] not in common.active_servers:
                         common.active_servers.append(sender_addr[0])
+                        print(f'[DISCOVERY] Added new server to network: {sender_addr[0]}')
                     receiver_socket.sendto(b'SERVER_JOINED', sender_addr)
                     common.network_topology_changed = True
                 
@@ -85,7 +87,27 @@ def handle_discovery_messages():
                     common.active_servers = message.server_list
                     common.connected_clients = message.client_list
                     common.current_leader = message.leader_ip
+                    common.election_in_progress = False  # Cancel any ongoing election
                     receiver_socket.sendto(b'SERVER_JOINED', sender_addr)
+                    common.network_topology_changed = True
+                    common.new_server_joined = True
+                    print(f'[DISCOVERY] Updated leader information: {message.leader_ip}')
+                
+                elif common.current_leader == common.my_ip:
+                    # We are the leader, add new server and update network
+                    if sender_addr[0] not in common.active_servers:
+                        common.active_servers.append(sender_addr[0])
+                        print(f'[DISCOVERY] Leader added new server: {sender_addr[0]}')
+                    
+                    # Send current network state to new server
+                    response_msg = pickle.dumps([
+                        common.MessageType.SERVER_DISCOVERY.value,
+                        common.active_servers,
+                        common.connected_clients,
+                        common.current_leader,
+                        ''
+                    ])
+                    receiver_socket.sendto(response_msg, sender_addr)
                     common.network_topology_changed = True
                     common.new_server_joined = True
             

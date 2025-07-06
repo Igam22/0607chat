@@ -21,6 +21,7 @@ network_topology_changed = False
 server_failure_detected = False
 new_server_joined = False
 client_disconnected = False
+election_in_progress = False
 
 class MessageType(enum.Enum):
     SERVER_DISCOVERY = 'SERVER_DISCOVERY'
