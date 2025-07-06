@@ -18,12 +18,19 @@ def main():
     # Initialize discovery service
     discovery.initialize_discovery_receiver()
     
+    # Start background services immediately so they can respond to announcements
+    common.create_thread(discovery.handle_discovery_messages)
+    common.create_thread(heartbeat.monitor_server_health)
+    
     # Start chat server in background
     common.create_thread(chat_handler.start_chat_server)
     
     # Add self to server list first
     if common.my_ip not in common.active_servers:
         common.active_servers.append(common.my_ip)
+    
+    # Small delay to ensure discovery handler is running
+    time.sleep(0.2)
     
     # Announce server presence and wait for existing servers
     print(f'[SERVER] Announcing presence and waiting for existing servers...')
@@ -52,10 +59,6 @@ def main():
         election.initiate_leader_election()
     else:
         print(f'[SERVER] Leader already exists: {common.current_leader}')
-    
-    # Start background services
-    common.create_thread(discovery.handle_discovery_messages)
-    common.create_thread(heartbeat.monitor_server_health)
     
     # Main server loop
     while True:
