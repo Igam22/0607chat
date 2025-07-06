@@ -3,7 +3,7 @@ import time
 import common
 import chat_handler
 import discovery
-import election
+import bullyelection
 import heartbeat
 
 def display_network_status():
@@ -13,7 +13,7 @@ def display_network_status():
 
 def main():
     """Main server application"""
-    print(f'[SERVER] Starting Distributed Chat Server v0.0.1 on {common.my_ip}')
+    print(f'[SERVER] Starting Distributed Chat Server v0.0.2 on {common.my_ip}')
     
     # Initialize discovery service
     discovery.initialize_discovery_receiver()
@@ -21,7 +21,7 @@ def main():
     # Start background services immediately so they can respond to announcements
     common.create_thread(discovery.handle_discovery_messages)
     common.create_thread(heartbeat.monitor_server_health)
-    common.create_thread(election.handle_election_messages)
+    common.create_thread(bullyelection.handle_bully_election_messages)
     
     # Start chat server in background
     common.create_thread(chat_handler.start_chat_server)
@@ -62,9 +62,9 @@ def main():
     print(f'[SERVER] Election in progress: {common.election_in_progress}')
     
     if common.current_leader is None:
-        print(f'[SERVER] No leader exists - starting election')
-        election.initiate_leader_election()
-        print(f'[SERVER] Election completed - Final leader: {common.current_leader}')
+        print(f'[SERVER] No leader exists - starting bully election')
+        bullyelection.initiate_bully_election()
+        print(f'[SERVER] Bully election completed - Final leader: {common.current_leader}')
     else:
         print(f'[SERVER] Leader already exists: {common.current_leader}')
     

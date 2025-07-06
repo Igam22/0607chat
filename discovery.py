@@ -3,6 +3,7 @@ import struct
 import pickle
 import time
 import common
+import bullyelection
 
 # Multicast sender socket
 sender_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
@@ -79,6 +80,9 @@ def handle_discovery_messages():
                     if sender_addr[0] not in common.active_servers:
                         common.active_servers.append(sender_addr[0])
                         print(f'[DISCOVERY] Added new server to network: {sender_addr[0]}')
+                        # Trigger election when new server joins
+                        print(f'[DISCOVERY] New server joined - triggering bully election')
+                        common.create_thread(bullyelection.trigger_election_if_needed)
                     receiver_socket.sendto(b'SERVER_JOINED', sender_addr)
                     common.network_topology_changed = True
                 
@@ -98,6 +102,9 @@ def handle_discovery_messages():
                     if sender_addr[0] not in common.active_servers:
                         common.active_servers.append(sender_addr[0])
                         print(f'[DISCOVERY] Leader added new server: {sender_addr[0]}')
+                        # New server with potentially higher priority joined - trigger election
+                        print(f'[DISCOVERY] New server joined while I am leader - triggering bully election')
+                        common.create_thread(bullyelection.trigger_election_if_needed)
                     
                     # Send current network state to new server
                     response_msg = pickle.dumps([
