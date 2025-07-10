@@ -70,7 +70,7 @@ def receive_chat_messages():
 def connect_to_server():
     """Connect to the chat server"""
     # Initialize discovery
-    discovery.initialize_discovery_receiver()
+    # discovery.initialize_discovery_receiver()  # Entfernt, damit der Client nicht auf DISCOVERY_PORT bindet
     
     # Find the current leader
     leader_found = discovery.find_chat_leader(username)

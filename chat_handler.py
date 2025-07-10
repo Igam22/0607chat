@@ -1,4 +1,5 @@
 import socket
+import pickle
 import common
 
 # Main chat socket
@@ -6,6 +7,26 @@ chat_socket = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
 chat_socket.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
 chat_socket.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 chat_socket.bind((common.my_ip, common.CHAT_PORT))
+
+# Hilfsfunktion: Nachricht an alle anderen Server weiterleiten
+
+def forward_message_to_servers(message, sender_addr):
+    # Debug-Ausgabe der aktuellen Serverliste
+    print(f"[DEBUG] Aktive Server auf {common.my_ip}: {common.active_servers}")
+    # Verhindere Endlosschleifen: Sende nicht an sich selbst oder an den Ursprungsserver
+    for server_ip in common.active_servers:
+        if server_ip != common.my_ip and sender_addr[0] != server_ip:
+            try:
+                # Markiere die Nachricht als weitergeleitet (von Server)
+                server_msg = pickle.dumps([
+                    message.msg_type,
+                    message.username,
+                    message.content,
+                    True  # is_server_forwarded
+                ])
+                chat_socket.sendto(server_msg, (server_ip, common.CHAT_PORT))
+            except Exception as e:
+                print(f'[CHAT] Fehler beim Weiterleiten an Server {server_ip}: {e}')
 
 def start_chat_server():
     """Start the main chat server"""
@@ -15,19 +36,28 @@ def start_chat_server():
     while True:
         try:
             data, client_addr = chat_socket.recvfrom(1024)
+            # Prüfe, ob die Nachricht von einem Server weitergeleitet wurde
+            try:
+                chat_msg_data = pickle.loads(data)
+                if len(chat_msg_data) == 4:
+                    # [msg_type, username, content, is_server_forwarded]
+                    is_server_forwarded = chat_msg_data[3]
+                else:
+                    is_server_forwarded = False
+            except Exception:
+                is_server_forwarded = False
+            
             chat_msg = common.deserialize_chat_message(data)
             
             # Handle new client connections
-            if client_addr not in common.connected_clients:
+            if client_addr not in common.connected_clients and not is_server_forwarded:
                 common.connected_clients.append(client_addr)
                 if chat_msg:
                     process_chat_message(chat_msg, client_addr)
                     welcome_msg = f'[SERVER] {chat_msg.username}, welcome to the chat!'
                     chat_socket.sendto(welcome_msg.encode(common.ENCODING), client_addr)
-                    
                     client_list_msg = f'[CLIENTS] {common.connected_clients}'
                     chat_socket.sendto(client_list_msg.encode(common.ENCODING), client_addr)
-                    
                     # Notify other clients
                     chat_msg.content = 'joined the chat'
                     broadcast_to_clients(chat_msg, client_addr)
@@ -36,6 +66,11 @@ def start_chat_server():
             # Handle existing client messages
             process_chat_message(chat_msg, client_addr)
             broadcast_to_clients(chat_msg, client_addr)
+            
+            # Wenn Nachricht von Client kommt, an andere Server weiterleiten
+            if not is_server_forwarded:
+                forward_message_to_servers(chat_msg, client_addr)
+            # Wenn Nachricht von Server kommt, NICHT weiterleiten (sonst Endlosschleife)
             
         except Exception as e:
             print(f'[CHAT] Error: {e}')

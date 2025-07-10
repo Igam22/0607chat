@@ -18,11 +18,14 @@ def main():
     # Initialize discovery service
     discovery.initialize_discovery_receiver()
     
+    # Starte den neuen Discovery-Thread
+    discovery.start_periodic_discovery()
+    
     # Start chat server in background
     common.create_thread(chat_handler.start_chat_server)
     
-    # Announce server presence
-    server_discovered = discovery.announce_server_presence()
+    # Announce server presence (kann entfernt werden, da jetzt periodisch)
+    # server_discovered = discovery.announce_server_presence()
     
     # Add self to server list
     if common.my_ip not in common.active_servers:
@@ -42,7 +45,7 @@ def main():
         try:
             # Handle leader responsibilities
             if common.current_leader == common.my_ip and (common.network_topology_changed or common.server_failure_detected):
-                discovery.announce_server_presence()
+                # discovery.announce_server_presence()  # nicht mehr nötig
                 common.server_failure_detected = False
                 common.network_topology_changed = False
                 display_network_status()
@@ -81,6 +84,7 @@ if __name__ == '__main__':
     # Starten Sie die Wahl. Diese Funktion blockiert, bis ein Leader gewählt ist.
     # Danach wird die Hauptschleife fortgesetzt.
         election.initiate_leader_election()
+        
 
     # Nachdem ein neuer Leader gewählt wurde, den neuen Zustand bekannt geben.
         common.network_topology_changed = True
